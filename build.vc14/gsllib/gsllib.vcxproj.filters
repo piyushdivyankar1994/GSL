@@ -1701,6 +1701,15 @@
     <ClCompile Include="..\..\rstat\rstat.c">
       <Filter>rstat</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\multifit\linear_common.c">
+      <Filter>multifit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\multifit\multiridge.c">
+      <Filter>multifit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\multifit\multiwlinear.c">
+      <Filter>multifit</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\histogram\gsl_histogram.h">

@@ -220,8 +220,11 @@
     <ClCompile Include="..\..\interpolation\steffen.c" />
     <ClCompile Include="..\..\multifit\fdfridge.c" />
     <ClCompile Include="..\..\multifit\fdjac.c" />
+    <ClCompile Include="..\..\multifit\linear_common.c" />
     <ClCompile Include="..\..\multifit\lmniel.c" />
+    <ClCompile Include="..\..\multifit\multiridge.c" />
     <ClCompile Include="..\..\multifit\multirobust.c" />
+    <ClCompile Include="..\..\multifit\multiwlinear.c" />
     <ClCompile Include="..\..\multifit\robust_wfun.c" />
     <ClCompile Include="..\..\multiset\file.c">
       <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)multiset\</ObjectFileName>
