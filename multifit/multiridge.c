@@ -56,16 +56,16 @@ gsl_multifit_linear_ridge_solve (const double lambda,
 
 /*
 gsl_multifit_linear_ridge_svd()
-  Using regularization matrix L = \lambda G, with
-G = diag(g_1,g_2,...,g_p), transform to Tikhonov standard form:
+  Using regularization matrix
+L = diag(l_1,l_2,...,l_p), transform to Tikhonov standard form:
 
-X~ = X G^{-1}
-c~ = G c
+X~ = X L^{-1}
+c~ = L c
 
 and compute SVD of X~
 
-Inputs: g    - Tikhonov matrix as a vector of diagonal elements
-        X    - least squares matrix
+Inputs: X    - least squares matrix
+        L    - Tikhonov matrix as a vector of diagonal elements
         work - workspace
 
 Return: success/error
@@ -75,16 +75,16 @@ Notes:
 */
 
 int
-gsl_multifit_linear_ridge_svd (const gsl_vector * g,
-                               const gsl_matrix * X,
+gsl_multifit_linear_ridge_svd (const gsl_matrix * X,
+                               const gsl_vector * L,
                                gsl_multifit_linear_workspace * work)
 {
   const size_t n = work->n;
   const size_t p = work->p;
 
-  if (p != g->size)
+  if (p != L->size)
     {
-      GSL_ERROR("g vector does not match workspace", GSL_EBADLEN);
+      GSL_ERROR("L vector does not match workspace", GSL_EBADLEN);
     }
   else if (n != X->size1 || p != X->size2)
     {
@@ -95,20 +95,20 @@ gsl_multifit_linear_ridge_svd (const gsl_vector * g,
       int status = GSL_SUCCESS;
       size_t j;
 
-      /* construct X~ = X * G^{-1} matrix using work->A */
+      /* construct X~ = X * L^{-1} matrix using work->A */
       for (j = 0; j < p; ++j)
         {
           gsl_vector_const_view Xj = gsl_matrix_const_column(X, j);
           gsl_vector_view Aj = gsl_matrix_column(work->A, j);
-          double gj = gsl_vector_get(g, j);
+          double lj = gsl_vector_get(L, j);
 
-          if (gj == 0.0)
+          if (lj == 0.0)
             {
               GSL_ERROR("G matrix is singular", GSL_EDOM);
             }
 
           gsl_vector_memcpy(&Aj.vector, &Xj.vector);
-          gsl_vector_scale(&Aj.vector, 1.0 / gj);
+          gsl_vector_scale(&Aj.vector, 1.0 / lj);
         }
 
       /* compute SVD of X~; do not balance for regularized problems */
@@ -119,21 +119,98 @@ gsl_multifit_linear_ridge_svd (const gsl_vector * g,
 }
 
 /*
-gsl_multifit_linear_ridge_trans()
-  Backtransform regularized solution vector using matrix
-G = diag(g)
+gsl_multifit_linear_ridge_svd2()
+  Using regularization matrix L, transform to Tikhonov standard form:
+
+X~ = X L^{-1}
+c~ = L c
+
+and compute SVD of X~
+
+Inputs: X    - least squares matrix
+        L    - on input, Tikhonov matrix
+               on output, QR decomposition of L
+        tau  - additional workspace for QR decomposition
+        work - workspace
+
+Return: success/error
+
+Notes:
+1) X~ is computed as well as its SVD which is stored in work
 */
 
 int
-gsl_multifit_linear_ridge_trans (const gsl_vector * g,
-                                 gsl_vector * c,
-                                 gsl_multifit_linear_workspace * work)
+gsl_multifit_linear_ridge_svd2 (const gsl_matrix * X,
+                                gsl_matrix * L,
+                                gsl_vector * tau,
+                                gsl_multifit_linear_workspace * work)
+{
+  const size_t n = work->n;
+  const size_t p = work->p;
+
+  if (L->size1 != L->size2)
+    {
+      GSL_ERROR("L matrix must be square", GSL_ENOTSQR);
+    }
+  else if (p != L->size1)
+    {
+      GSL_ERROR("L matrix does not match workspace", GSL_EBADLEN);
+    }
+  else if (p != tau->size)
+    {
+      GSL_ERROR("tau vector does not match workspace", GSL_EBADLEN);
+    }
+  else if (n != X->size1 || p != X->size2)
+    {
+      GSL_ERROR("X matrix does not match workspace", GSL_EBADLEN);
+    }
+  else
+    {
+      int status;
+      size_t i;
+
+      /* compute QR decomposition of L */
+      status = gsl_linalg_QR_decomp(L, tau);
+      if (status)
+        return status;
+
+      gsl_matrix_memcpy(work->A, X);
+
+      /* compute X~ = X L^{-1} using QR decomposition of L */
+      for (i = 0; i < n; ++i)
+        {
+          gsl_vector_view v = gsl_matrix_row(work->A, i);
+
+          /* solve: R^T y = X_j */
+          gsl_blas_dtrsv(CblasUpper, CblasTrans, CblasNonUnit, L, &v.vector);
+
+          /* compute: X~_j = Q y */
+          gsl_linalg_QR_Qvec(L, tau, &v.vector);
+        }
+
+      /* compute SVD of X~; do not balance for regularized problems */
+      status = multifit_linear_svd (work->A, 0, work);
+
+      return status;
+    }
+}
+
+/*
+gsl_multifit_linear_ridge_transform()
+  Backtransform regularized solution vector using matrix
+L = diag(L)
+*/
+
+int
+gsl_multifit_linear_ridge_transform (const gsl_vector * L,
+                                     gsl_vector * c,
+                                     gsl_multifit_linear_workspace * work)
 {
   const size_t p = work->p;
 
-  if (p != g->size)
+  if (p != L->size)
     {
-      GSL_ERROR("g vector does not match workspace", GSL_EBADLEN);
+      GSL_ERROR("L vector does not match workspace", GSL_EBADLEN);
     }
   else if (p != c->size)
     {
@@ -141,10 +218,46 @@ gsl_multifit_linear_ridge_trans (const gsl_vector * g,
     }
   else
     {
-      /* compute true solution vector c = G^{-1} c~ */
-      gsl_vector_div(c, g);
+      /* compute true solution vector c = L^{-1} c~ */
+      gsl_vector_div(c, L);
 
       return GSL_SUCCESS;
+    }
+}
+
+/*
+gsl_multifit_linear_ridge_transform2()
+  Backtransform regularized solution vector using matrix L = QR and tau
+*/
+
+int
+gsl_multifit_linear_ridge_transform2 (const gsl_matrix * QR,
+                                      const gsl_vector * tau,
+                                      gsl_vector * c,
+                                      gsl_multifit_linear_workspace * work)
+{
+  const size_t p = work->p;
+
+  if (p != QR->size1 || p != QR->size2)
+    {
+      GSL_ERROR("QR matrix does not match workspace", GSL_EBADLEN);
+    }
+  else if (p != tau->size)
+    {
+      GSL_ERROR("tau vector does not match workspace", GSL_EBADLEN);
+    }
+  else if (p != c->size)
+    {
+      GSL_ERROR("c vector does not match workspace", GSL_EBADLEN);
+    }
+  else
+    {
+      int s;
+
+      /* solve Lc = c~ for true solution c */
+      s = gsl_linalg_QR_svx(QR, tau, c);
+
+      return s;
     }
 }
 
@@ -279,7 +392,7 @@ with maximum curvature is then selected.
 Inputs: rho - vector of residual norms ||A x - b||
         eta - vector of solution norms ||L x||
         idx - (output) index i such that
-              (log(rho(i)),log(eta(i)) is the point of
+              (log(rho(i)),log(eta(i))) is the point of
               maximum curvature
 
 Return: success/error
@@ -348,7 +461,7 @@ gsl_multifit_linear_ridge_lcorner(const gsl_vector *rho,
                 }
             }
 
-          /* update previous/current log values */
+          /* update previous/current L-curve values */
           x1 = x2;
           y1 = y2;
           x2 = x3;
@@ -365,3 +478,112 @@ gsl_multifit_linear_ridge_lcorner(const gsl_vector *rho,
       return s;
     }
 } /* gsl_multifit_linear_ridge_lcorner() */
+
+/*
+gsl_multifit_linear_ridge_lcorner2()
+  Determine point on L-curve (lambda^2, ||c||^2) of maximum curvature.
+For each set of 3 points on the L-curve, the circle which passes through
+the 3 points is computed. The radius of the circle is then used
+as an estimate of the curvature at the middle point. The point
+with maximum curvature is then selected.
+
+This routine is based on the paper
+
+M. Rezghi and S. M. Hosseini, "A new variant of L-curve for Tikhonov
+regularization", J. Comp. App. Math., 231 (2009).
+
+Inputs: reg_param - vector of regularization parameters
+        eta       - vector of solution norms ||L x||
+        idx       - (output) index i such that
+                    (lambda(i)^2,eta(i)^2) is the point of
+                    maximum curvature
+
+Return: success/error
+*/
+
+int
+gsl_multifit_linear_ridge_lcorner2(const gsl_vector *reg_param,
+                                   const gsl_vector *eta,
+                                   size_t *idx)
+{
+  const size_t n = reg_param->size;
+
+  if (n < 3)
+    {
+      GSL_ERROR ("at least 3 points are needed for L-curve analysis",
+                 GSL_EBADLEN);
+    }
+  else if (n != eta->size)
+    {
+      GSL_ERROR ("size of reg_param and eta vectors do not match",
+                 GSL_EBADLEN);
+    }
+  else
+    {
+      int s = GSL_SUCCESS;
+      size_t i;
+      double x1, y1;      /* first point of triangle on L-curve */
+      double x2, y2;      /* second point of triangle on L-curve */
+      double rmin = -1.0; /* minimum radius of curvature */
+
+      /* initial values */
+      x1 = gsl_vector_get(reg_param, 0);
+      x1 *= x1;
+      y1 = gsl_vector_get(eta, 0);
+      y1 *= y1;
+
+      x2 = gsl_vector_get(reg_param, 1);
+      x2 *= x2;
+      y2 = gsl_vector_get(eta, 1);
+      y2 *= y2;
+
+      for (i = 1; i < n - 1; ++i)
+        {
+          /*
+           * The points (x1,y1), (x2,y2), (x3,y3) are the previous,
+           * current, and next point on the L-curve. We will find
+           * the circle which fits these 3 points and take its radius
+           * as an estimate of the curvature at this point.
+           */
+          double lamip1 = gsl_vector_get(reg_param, i + 1);
+          double etaip1 = gsl_vector_get(eta, i + 1);
+          double x3 = lamip1 * lamip1;
+          double y3 = etaip1 * etaip1;
+
+          double x21 = x2 - x1;
+          double y21 = y2 - y1;
+          double x31 = x3 - x1;
+          double y31 = y3 - y1;
+          double h21 = x21*x21 + y21*y21;
+          double h31 = x31*x31 + y31*y31;
+          double d = fabs(2.0 * (x21*y31 - x31*y21));
+          double r = sqrt(h21*h31*((x3-x2)*(x3-x2)+(y3-y2)*(y3-y2))) / d;
+
+          /* if d =~ 0 then there are nearly colinear points */
+          if (gsl_finite(r))
+            {
+              /* check for smallest radius of curvature */
+              if (r < rmin || rmin < 0.0)
+                {
+                  rmin = r;
+                  *idx = i;
+                }
+            }
+
+          /* update previous/current L-curve values */
+          x1 = x2;
+          y1 = y2;
+          x2 = x3;
+          y2 = y3;
+        }
+
+      /* check if a minimum radius was found */
+      if (rmin < 0.0)
+        {
+          /* possibly co-linear points */
+          GSL_ERROR("failed to find minimum radius", GSL_EINVAL);
+        }
+
+      return s;
+    }
+} /* gsl_multifit_linear_ridge_lcorner2() */
