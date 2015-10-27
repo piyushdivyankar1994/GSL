@@ -222,7 +222,7 @@
     <ClCompile Include="..\..\multifit\fdjac.c" />
     <ClCompile Include="..\..\multifit\linear_common.c" />
     <ClCompile Include="..\..\multifit\lmniel.c" />
-    <ClCompile Include="..\..\multifit\multiridge.c" />
+    <ClCompile Include="..\..\multifit\multireg.c" />
     <ClCompile Include="..\..\multifit\multirobust.c" />
     <ClCompile Include="..\..\multifit\multiwlinear.c" />
     <ClCompile Include="..\..\multifit\robust_wfun.c" />

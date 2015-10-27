@@ -4,7 +4,7 @@ pkginclude_HEADERS = gsl_multifit.h gsl_multifit_nlin.h
 
 AM_CPPFLAGS = -I$(top_srcdir)
 
-libgslmultifit_la_SOURCES = multilinear.c multiwlinear.c work.c lmniel.c lmder.c fsolver.c fdfsolver.c fdfridge.c fdjac.c convergence.c gradient.c covar.c multirobust.c robust_wfun.c multiridge.c
+libgslmultifit_la_SOURCES = multilinear.c multiwlinear.c work.c lmniel.c lmder.c fsolver.c fdfsolver.c fdfridge.c fdjac.c convergence.c gradient.c covar.c multirobust.c robust_wfun.c multireg.c
 
 noinst_HEADERS =        \
 linear_common.c         \
@@ -12,6 +12,7 @@ lmutil.c                \
 lmpar.c                 \
 lmset.c                 \
 lmiterate.c             \
+lmmisc.c                \
 qrsolv.c                \
 test_bard.c             \
 test_beale.c            \
@@ -50,7 +51,7 @@ test_powell2.c          \
 test_powell3.c          \
 test_rat42.c            \
 test_rat43.c            \
-test_ridge.c            \
+test_reg.c              \
 test_rosenbrock.c       \
 test_rosenbrocke.c      \
 test_roth.c             \
@@ -58,6 +59,7 @@ test_shaw.c             \
 test_thurber.c          \
 test_vardim.c           \
 test_watson.c           \
+test_wnlin.c            \
 test_wood.c
 
 check_PROGRAMS = test #demo

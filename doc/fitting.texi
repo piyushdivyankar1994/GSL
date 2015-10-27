@@ -18,7 +18,7 @@ two-parameter regression and multiple-parameter fits.
 * Fitting Overview::            
 * Linear regression::           
 * Multi-parameter regression::
-* Ridge (Tikhonov) regression::
+* Regularized regression::
 * Robust linear regression::
 * Troubleshooting::
 * Fitting Examples for linear regression::
@@ -240,19 +240,20 @@ to a linear model by minimizing the cost function
 @tex
 \beforedisplay
 $$
-\chi^2 = \sum_i w_i (y_i - \sum_j X_{ij} c_j)^2 = || \sqrt{W} (y - Xc) ||^2
+\chi^2 = \sum_i w_i (y_i - \sum_j X_{ij} c_j)^2 = || y - Xc ||_W^2
 $$
 \afterdisplay
 @end tex
 @ifinfo
 @example
-\chi^2 = \sum_i w_i (y_i - \sum_j X_ij c_j)^2 = || \sqrt(W) (y - Xc) ||^2
+\chi^2 = \sum_i w_i (y_i - \sum_j X_ij c_j)^2 = || y - Xc ||_W^2
 @end example
 @end ifinfo
 where @math{y} is a vector of @math{n} observations, @math{X} is an
-@math{n}-by-@math{p} matrix of predictor variables, and the elements
-of the vector @math{c} are the @math{p} unknown best-fit parameters
-which are to be estimated. The matrix @math{W = } diag@math{(w_1,w_2,...,w_n)}
+@math{n}-by-@math{p} matrix of predictor variables, @math{c}
+is a vector of the @math{p} unknown best-fit parameters to be estimated,
+and @math{||r||_W^2 = r^T W r}.
+The matrix @math{W = } diag@math{(w_1,w_2,...,w_n)}
 defines the weights or uncertainties of the observation vector.
 
 This formulation can be used for fits to any number of functions and/or
@@ -320,10 +321,11 @@ value decomposition of the matrix @math{X}.
 
 These functions are declared in the header file @file{gsl_multifit.h}.
 
-@deftypefun {gsl_multifit_linear_workspace *} gsl_multifit_linear_alloc (size_t @var{n}, size_t @var{p})
+@deftypefun {gsl_multifit_linear_workspace *} gsl_multifit_linear_alloc (const size_t @var{n}, const size_t @var{p})
 @tindex gsl_multifit_linear_workspace
-This function allocates a workspace for fitting a model to @var{n}
-observations using @var{p} parameters. The size of the workspace is
+This function allocates a workspace for fitting a model to a maximum of @var{n}
+observations using a maximum of @var{p} parameters. The user may later supply
+a smaller least squares system if desired. The size of the workspace is
 @math{O(np + p^2)}.
 @end deftypefun
 
@@ -390,99 +392,120 @@ the observations @var{y}, coefficients @var{c} and matrix of predictor
 variables @var{X}.
 @end deftypefun
 
-@node Ridge (Tikhonov) regression
-@section Ridge (Tikhonov) regression
+@node Regularized regression
+@section Regularized regression
 @cindex ridge regression
 @cindex Tikhonov regression
 @cindex regression, ridge
 @cindex regression, Tikhonov
 @cindex least squares, regularized
 
-Ordinary least squares models seek a solution vector @math{c} which
-minimizes the residual
+Ordinary weighted least squares models seek a solution vector @math{c}
+which minimizes the residual
 @tex
 \beforedisplay
 $$
-\chi^2 = || y - Xc ||^2
+\chi^2 = || y - Xc ||_W^2
 $$
 \afterdisplay
 @end tex
 @ifinfo
 @example
-\chi^2 = || y - Xc ||^2
+\chi^2 = || y - Xc ||_W^2
 @end example
 @end ifinfo
+where @math{y} is the @math{n}-by-@math{1} observation vector,
+@math{X} is the @math{n}-by-@math{p} design matrix, @math{c} is
+the @math{p}-by-@math{1} solution vector,
+@math{W =} diag@math{(w_1,...,w_n)} is the data weighting matrix,
+and @math{||r||_W^2 = r^T W r}.
 In cases where the least squares matrix @math{X} is ill-conditioned,
-small perturbations of the matrix could lead to widely different
-solution vectors @math{c}. In these cases it is often advantageous
-to include a regularization term in the least squares minimization
+small perturbations of the matrix or observation vector could lead to
+widely different solution vectors @math{c}. In these cases it is often
+advantageous to include a regularization term in the least squares
+minimization
 @tex
 \beforedisplay
 $$
-\chi^2 = || y - Xc ||^2 + \lambda^2 || L c ||^2
+\chi^2 = || y - Xc ||_W^2 + \lambda^2 || L c ||^2
 $$
 \afterdisplay
 @end tex
 @ifinfo
 @example
-\chi^2 = || y - Xc ||^2 + \lambda^2 || L c ||^2
+\chi^2 = || y - Xc ||_W^2 + \lambda^2 || L c ||^2
 @end example
 @end ifinfo
 for a suitably chosen regularization parameter @math{\lambda} and
-matrix @math{L}. In many cases,
-@math{L} is chosen as the identity matrix, giving
+matrix @math{L}. This type of regularization is known as Tikhonov, or ridge,
+regression. In some applications, @math{L} is chosen as the identity matrix, giving
 preference to solution vectors @math{c} with smaller norms.
-Including this regularization term leads to the explicit solution
+Including this regularization term leads to the explicit ``normal equations'' solution
 @tex
 \beforedisplay
 $$
-c = \left( X^T X + \lambda^2 L^T L \right)^{-1} X^T y
+c = \left( X^T W X + \lambda^2 L^T L \right)^{-1} X^T W y
 $$
 \afterdisplay
 @end tex
 @ifinfo
 @example
-c = ( X^T X + \lambda^2 L^T L )^-1 X^T y
+c = ( X^T W X + \lambda^2 L^T L )^-1 X^T W y
 @end example
 @end ifinfo
 which reduces to the ordinary least squares solution when @math{L = 0}.
-The routines below support several formats for the @math{L} matrix.
-The first is @math{L = I} giving a solution
-@math{c = \left( X^T X + \lambda^2 I \right)^{-1} X^T y} which damps
-all solution coefficients equally, and is known as the Tikhonov
-``standard form''. For any square, invertible matrix @math{L},
-the problem can be converted to standard form with the transformation
+In practice, it is often advantageous to transform a regularized least
+squares system into the form
+@tex
+\beforedisplay
+$$
+\chi^2 = || \tilde{y} - \tilde{X} \tilde{c} ||^2 + \lambda^2 || \tilde{c} ||^2
+$$
+\afterdisplay
+@end tex
+@ifinfo
+@example
+\chi^2 = || y~ - X~ c~ ||^2 + \lambda^2 || c~ ||^2
+@end example
+@end ifinfo
+This is known as the Tikhonov ``standard form'' and has the normal equations solution
+@math{\tilde{c} = \left( \tilde{X}^T \tilde{X} + \lambda^2 I \right)^{-1} \tilde{X}^T \tilde{y}}.
+For an @math{m}-by-@math{p} matrix @math{L} which is full rank and has @math{m >= p} (ie: @math{L} is
+square or has more rows than columns), we can calculate the ``thin'' QR decomposition of @math{L}, and
+note that @math{||L c||} = @math{||R c||} since the @math{Q} factor will not change the norm. Since
+@math{R} is @math{p}-by-@math{p}, we can then use the transformation
 @tex
 \beforedisplay
 $$
 \eqalign{
-\tilde{X} &= X L^{-1} \cr
-\tilde{c} &= L c
+\tilde{X} &= W^{1 \over 2} X R^{-1} \cr
+\tilde{y} &= W^{1 \over 2} y \cr
+\tilde{c} &= R c
 }
 $$
 \afterdisplay
 @end tex
 @ifinfo
 @example
-X~ = X L^-1
-c~ = L c
+X~ = sqrt(W) X R^-1
+y~ = sqrt(W) y
+c~ = R c
 @end example
 @end ifinfo
-leading to @math{\tilde{c} = \left( \tilde{X}^T \tilde{X} + \lambda^2 I \right)^{-1} \tilde{X}^T y}.
-The matrix @math{L} is often chosen as a first or second
-finite difference operator, to ensure a smoothly varying coefficient
-vector @math{c}, or as a diagonal matrix to selectively damp each
-model parameter differently.
-The second regularization matrix input supported by GSL has the form
-@math{L = } diag@math{(l_0,l_1,...,l_{p-1})}
-(see @code{gsl_multifit_linear_ridge_svd}). The third matrix input
-is for a square invertible matrix @math{L}
-(see @code{gsl_multifit_linear_ridge_svd2}).
-For these matrices, GSL performs the above transformation and then
-backtransforms the least squares solution to recover the original
-vector @math{c}. For applications which require a matrix
-@math{L} which is not square or not invertible, other techniques must
-be used (see Hansen 1998, chapter 2.3).
+to achieve the standard form. For a rectangular matrix @math{L} with @math{m < p},
+a more sophisticated approach is needed (see Hansen 1998, chapter 2.3).
+In practice, the normal equations solution above is not desirable due to
+numerical instabilities, and so the system is solved using the
+singular value decomposition of the matrix @math{\tilde{X}}.
+The matrix @math{L} is often chosen as the identity matrix, or as a first
+or second finite difference operator, to ensure a smoothly varying
+coefficient vector @math{c}, or as a diagonal matrix to selectively damp
+each model parameter differently. If @math{L \ne I}, the user must first
+convert the least squares problem to standard form using
+@code{gsl_multifit_linear_stdform1} or @code{gsl_multifit_linear_stdform2},
+solve the system, and then backtransform the solution vector to recover
+the solution of the original problem (see
+@code{gsl_multifit_linear_genform1} and @code{gsl_multifit_linear_genform2}).
 
 In many regularization problems, care must be taken when choosing
 the regularization parameter @math{\lambda}. Since both the
@@ -500,62 +523,112 @@ corresponding to this corner is often chosen as the optimal
 value. GSL provides routines to calculate the L-curve for all
 relevant regularization parameters as well as locating the corner.
 
-@deftypefun int gsl_multifit_linear_ridge_svd (const gsl_matrix * @var{X}, const gsl_vector * @var{L}, gsl_multifit_linear_workspace * @var{work})
-This function defines a regularization matrix
+@noindent
+For most applications, the steps required to solve a regularized least
+squares problem are as follows:
+
+@enumerate
+
+@item Construct the least squares system (@math{X}, @math{y}, @math{W}, @math{L})
+
+@item Transform the system to standard form (@math{\tilde{X}},@math{\tilde{y}}). This
+step can be skipped if @math{L = I_p} and @math{W = I_n}.
+
+@item Calculate the SVD of @math{\tilde{X}}.
+
+@item Determine an appropriate regularization parameter @math{\lambda} (using for example
+L-curve analysis).
+
+@item Solve the standard form system using the chosen @math{\lambda} and the SVD of @math{\tilde{X}}.
+
+@item Backtransform the standard form solution @math{\tilde{c}} to recover the
+original solution vector @math{c}.
+
+@end enumerate
+
+@deftypefun int gsl_multifit_linear_stdform1 (const gsl_vector * @var{L}, const gsl_matrix * @var{X}, const gsl_vector * @var{y}, gsl_matrix * @var{Xs}, gsl_vector * @var{ys}, gsl_multifit_linear_workspace * @var{work})
+@deftypefunx int gsl_multifit_linear_wstdform1 (const gsl_vector * @var{L}, const gsl_matrix * @var{X}, const gsl_vector * @var{w}, const gsl_vector * @var{y}, gsl_matrix * @var{Xs}, gsl_vector * @var{ys}, gsl_multifit_linear_workspace * @var{work})
+These functions define a regularization matrix
 @math{L =} diag@math{(l_0,l_1,...,l_{p-1})}.
 The diagonal matrix element @math{l_i} is provided by the
 @math{i}th element of the input vector @var{L}.
-The least squares matrix @var{X} is then
-converted to standard form as described above, and the singular value
-decomposition of the transformed matrix @math{\tilde{X}} is computed
-and stored in @var{work}. In order to apply this transformation,
+The @math{n}-by-@math{p} least squares matrix @var{X} and
+vector @var{y} of length @math{n} are then
+converted to standard form as described above and the parameters
+(@math{\tilde{X}},@math{\tilde{y}}) are stored in @var{Xs} and @var{ys}
+on output.  @var{Xs} and @var{ys} have the same dimensions as
+@var{X} and @var{y}. Optional data weights may be supplied in the
+vector @var{w} of length @math{n}. In order to apply this transformation,
 @math{L^{-1}} must exist and so none of the @math{l_i}
-may be zero.
+may be zero. After the standard form system has been solved,
+use @code{gsl_multifit_linear_genform1} to recover the original solution vector.
+It is allowed to have @var{X} = @var{Xs} and @var{y} = @var{ys} for an in-place transform.
+In order to perform a weighted regularized fit with @math{L = I}, the user may
+call @code{gsl_multifit_linear_applyW} to convert to standard form.
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_svd2 (const gsl_matrix * @var{X}, gsl_matrix * @var{L}, gsl_vector * @var{tau}, gsl_multifit_linear_workspace * @var{work})
-This function converts the general system (@var{X},@var{L}) to standard
-form as discussed above and then computes the singular value
-decomposition of the transformed matrix @math{\tilde{X}}, which
-is stored in @var{work}. The vector @var{tau} is additional workspace
-of size @math{p}. On output, (@var{L},@var{tau}) contain the QR
-decomposition of the matrix @var{L}, which must be square and invertible.
+@deftypefun int gsl_multifit_linear_stdform2 (const gsl_matrix * @var{L}, const gsl_matrix * @var{X}, const gsl_vector * @var{y}, gsl_matrix * @var{Xs}, gsl_vector * @var{ys}, gsl_matrix * @var{M}, gsl_multifit_linear_workspace * @var{work})
+@deftypefunx int gsl_multifit_linear_wstdform2 (const gsl_matrix * @var{L}, const gsl_matrix * @var{X}, const gsl_vector * @var{w}, const gsl_vector * @var{y}, gsl_matrix * @var{Xs}, gsl_vector * @var{ys}, gsl_matrix * @var{M}, gsl_multifit_linear_workspace * @var{work})
+These functions convert the least squares system (@var{X},@var{y},@var{W},@var{L}) to standard
+form (@math{\tilde{X}},@math{\tilde{y}}) which are stored in @var{Xs} and @var{ys}
+respectively. The regularization matrix @var{L} is a full rank
+@math{m}-by-@math{p} matrix with no restrictions on @math{m}. However,
+the dimensions of the standard form parameters (@math{\tilde{X}},@math{\tilde{y}})
+depend on whether @math{m} is larger or less than @math{p}. For @math{m \ge p},
+@var{Xs} is @math{n}-by-@math{p}, @var{ys} is @math{n}-by-1, and @var{M} is
+additional @math{m}-by-@math{p} workspace. For @math{m < p}, @var{Xs} is @math{(n - p + m)}-by-@math{m},
+@var{ys} is @math{(n - p + m)}-by-1, and @var{M} is additional @math{n}-by-@math{p} workspace.
+In both cases, @var{M} is required to recover the original solution vector after the system has been
+solved (see @code{gsl_multifit_linear_genform2}). Optional data weights may be supplied in the
+vector @var{w} of length @math{n}, where @math{W =} diag(w).
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_solve (const double @var{lambda}, const gsl_vector * @var{y}, gsl_vector * @var{c}, gsl_matrix * @var{cov}, double * @var{rnorm}, double * @var{snorm}, gsl_multifit_linear_workspace * @var{work})
-This function computes the regularized best-fit parameters @var{c}
-of the model @math{y = X c} for the observations @var{y} and the matrix of
-predictor variables @var{X}. The SVD of @var{X} must be computed prior
-to calling this function, using @code{gsl_multifit_linear_svd},
-@code{gsl_multifit_linear_ridge_svd}, or @code{gsl_multifit_linear_ridge_svd2}.
+@deftypefun int gsl_multifit_linear_solve (const double @var{lambda}, const gsl_matrix * @var{Xs}, const gsl_vector * @var{ys}, gsl_vector * @var{cs}, double * @var{rnorm}, double * @var{snorm}, gsl_multifit_linear_workspace * @var{work})
+This function computes the regularized best-fit parameters @math{\tilde{c}}
+which minimize the cost function
+@math{\chi^2 = || \tilde{y} - \tilde{X} \tilde{c} ||^2 + \lambda^2 || \tilde{c} ||^2} which is
+in standard form. The least squares system must therefore be converted
+to standard form prior to calling this function.
+The observation vector @math{\tilde{y}} is provided in @var{ys} and the matrix of
+predictor variables @math{\tilde{X}} in @var{Xs}. The solution vector @math{\tilde{c}} is
+returned in @var{cs}, which has length min(@math{m,p}). The SVD of @var{Xs} must be computed prior
+to calling this function, using @code{gsl_multifit_linear_svd}.
 The regularization parameter @math{\lambda} is provided in @var{lambda}.
-The @math{p}-by-@math{p} variance-covariance matrix of the model parameters
-@var{cov} is set to @math{\sigma^2 (X^T X)^{-1}}, where @math{\sigma} is
-the standard deviation of the fit residuals.
-The residual norm @math{|| y - X c ||} is returned in @var{rnorm}.
-The solution norm @math{|| L c ||} is returned in
-@var{snorm}. The cost function @math{\chi^2} can be computed as
-@math{rnorm^2} + @math{\lambda^2 snorm^2}.
+The residual norm @math{|| \tilde{y} - \tilde{X} \tilde{c} || = ||y - X c||_W} is returned in @var{rnorm}.
+The solution norm @math{|| \tilde{c} || = ||L c||} is returned in
+@var{snorm}.
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_transform (const gsl_vector * @var{L}, gsl_vector * @var{c}, gsl_multifit_linear_workspace * @var{work})
+@deftypefun int gsl_multifit_linear_genform1 (const gsl_vector * @var{L}, const gsl_vector * @var{cs}, gsl_vector * @var{c}, gsl_multifit_linear_workspace * @var{work})
 After a regularized system has been solved with
 @math{L =} diag@math{(\l_0,\l_1,...,\l_{p-1})},
-this function backtransforms the solution vector @var{c}
-to recover the solution vector of the original problem. The
+this function backtransforms the standard form solution vector @var{cs}
+to recover the solution vector of the original problem @var{c}. The
 diagonal matrix elements @math{l_i} are provided in
-the vector @var{L}.
+the vector @var{L}. It is allowed to have @var{c} = @var{cs} for an
+in-place transform.
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_transform2 (const gsl_matrix * @var{QR}, const gsl_vector * @var{tau}, gsl_vector * @var{c}, gsl_multifit_linear_workspace * @var{work})
-After a regularized system has been solved with a general square matrix @math{L},
-this function backtransforms the solution vector @var{c}
-to recover the solution vector of the original problem. The
-parameters (@var{QR},@var{tau}) contain the QR decomposition of @math{L}
-as output from @code{gsl_multifit_linear_ridge_svd2}.
+@deftypefun int gsl_multifit_linear_genform2 (const gsl_matrix * @var{L}, const gsl_matrix * @var{X}, const gsl_vector * @var{y}, const gsl_vector * @var{cs}, const gsl_matrix * @var{M}, gsl_vector * @var{c}, gsl_multifit_linear_workspace * @var{work})
+@deftypefunx int gsl_multifit_linear_wgenform2 (const gsl_matrix * @var{L}, const gsl_matrix * @var{X}, const gsl_vector * @var{w}, const gsl_vector * @var{y}, const gsl_vector * @var{cs}, const gsl_matrix * @var{M}, gsl_vector * @var{c}, gsl_multifit_linear_workspace * @var{work})
+After a regularized system has been solved with a general rectangular matrix @math{L},
+this function backtransforms the standard form solution @var{cs}
+to recover the solution vector of the original problem, which is stored in @var{c},
+of length @math{p}. The original least squares matrix and observation vector are provided in
+@var{X} and @var{y} respectively. @var{M} is the matrix computed by
+@code{gsl_multifit_linear_stdform2}. For weighted fits, the weight vector
+@var{w} must also be supplied.
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_lcurve (const gsl_vector * @var{y}, gsl_vector * @var{reg_param}, gsl_vector * @var{rho}, gsl_vector * @var{eta}, gsl_multifit_linear_workspace * @var{work})
+@deftypefun int gsl_multifit_linear_applyW (const gsl_matrix * @var{X}, const gsl_vector * @var{w}, const gsl_vector * @var{y}, gsl_matrix * @var{WX}, gsl_vector * @var{Wy}, gsl_multifit_linear_workspace * @var{work})
+For weighted least squares systems with @math{L = I}, this function may be used to
+convert the system to standard form by applying the weight matrix @math{W =} diag(@var{w})
+to the least squares matrix @var{X} and observation vector @var{y}. On output, @var{WX}
+is equal to @math{W^{1/2} X} and @var{Wy} is equal to @math{W^{1/2} y}. It is allowed
+for @var{WX} = @var{X} and @var{Wy} = @var{y} for an in-place transform.
+@end deftypefun
+
+@deftypefun int gsl_multifit_linear_lcurve (const gsl_vector * @var{y}, gsl_vector * @var{reg_param}, gsl_vector * @var{rho}, gsl_vector * @var{eta}, gsl_multifit_linear_workspace * @var{work})
 This function computes the L-curve for a least squares system
 using the right hand side vector @var{y} and the SVD decomposition
 of the least squares matrix @var{X}, which must be provided
@@ -573,12 +646,12 @@ of @var{X}, and chosen to represent the most relevant portion of
 the L-curve.
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_lcorner (const gsl_vector * @var{rho}, const gsl_vector * @var{eta}, size_t * @var{idx})
+@deftypefun int gsl_multifit_linear_lcorner (const gsl_vector * @var{rho}, const gsl_vector * @var{eta}, size_t * @var{idx})
 This function attempts to locate the corner of the L-curve
 @math{(||y - X c||, ||L c||)} defined by the @var{rho} and @var{eta}
 input arrays respectively. The corner is defined as the point of maximum
 curvature of the L-curve in log-log scale. The @var{rho} and @var{eta}
-arrays can be outputs of @code{gsl_multifit_linear_ridge_lcurve}. The
+arrays can be outputs of @code{gsl_multifit_linear_lcurve}. The
 algorithm used simply fits a circle to 3 consecutive points on the L-curve
 and uses the circle's radius to determine the curvature at
 the middle point. Therefore, the input array sizes must be
@@ -589,7 +662,7 @@ in @var{idx}. If the input arrays contain colinear points,
 this function could fail and return @code{GSL_EINVAL}.
 @end deftypefun
 
-@deftypefun int gsl_multifit_linear_ridge_lcorner2 (const gsl_vector * @var{reg_param}, const gsl_vector * @var{eta}, size_t * @var{idx})
+@deftypefun int gsl_multifit_linear_lcorner2 (const gsl_vector * @var{reg_param}, const gsl_vector * @var{eta}, size_t * @var{idx})
 This function attempts to locate the corner of an alternate L-curve
 @math{(\lambda^2, ||L c||^2)} studied by Rezghi and Hosseini, 2009.
 This alternate L-curve can provide better estimates of the
@@ -598,7 +671,7 @@ parameters @math{\lambda} and solution norms @math{||L c||} are provided
 in the @var{reg_param} and @var{eta} input arrays respectively. The
 corner is defined as the point of maximum curvature of this
 alternate L-curve in linear scale. The @var{reg_param} and @var{eta}
-arrays can be outputs of @code{gsl_multifit_linear_ridge_lcurve}. The
+arrays can be outputs of @code{gsl_multifit_linear_lcurve}. The
 algorithm used simply fits a circle to 3 consecutive points on the L-curve
 and uses the circle's radius to determine the curvature at
 the middle point. Therefore, the input array sizes must be
@@ -607,6 +680,23 @@ estimate of the curvature can be obtained. The array index
 corresponding to maximum curvature (ie: the corner) is returned
 in @var{idx}. If the input arrays contain colinear points,
 this function could fail and return @code{GSL_EINVAL}.
+@end deftypefun
+
+@deftypefun int gsl_multifit_linear_Lk (const size_t @var{p}, const size_t @var{k}, gsl_matrix * @var{L})
+This function computes the discrete approximation to the derivative operator @math{L_k} of
+order @var{k} on a regular grid of @var{p} points and stores it in @var{L}. The dimensions of @var{L} are
+@math{(p-k)}-by-@math{p}.
+@end deftypefun
+
+@deftypefun int gsl_multifit_linear_Lsobolev (const size_t @var{p}, const size_t @var{kmax}, const gsl_vector * @var{alpha}, gsl_matrix * @var{L}, gsl_multifit_linear_workspace * @var{work})
+This function computes the regularization matrix @var{L} corresponding to the weighted Sobolov norm
+@math{||L c||^2 = \sum_k \alpha_k^2 ||L_k c||^2} where @math{L_k} approximates the derivative
+operator of order @math{k}. This regularization norm can be useful in applications where
+it is necessary to smooth several derivatives of the solution. @var{p} is the number of
+model parameters, @var{kmax} is the highest derivative to include in the summation above, and
+@var{alpha} is the vector of weights of size @var{kmax} + 1, where @var{alpha}[k] = @math{\alpha_k}
+is the weight assigned to the derivative of order @math{k}.  The output matrix @var{L} is of size
+@var{p}-by-@var{p}.
 @end deftypefun
 
 @node Robust linear regression
@@ -1158,7 +1248,7 @@ finding its corner. The L-curve and its computed corner are plotted below.
 
 @noindent The program is given below.
 @example
-@verbatiminclude examples/ridge.c
+@verbatiminclude examples/fitreg.c
 @end example
 
 @node Fitting Examples for robust linear regression

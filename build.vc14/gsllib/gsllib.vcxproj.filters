@@ -1704,10 +1704,10 @@
     <ClCompile Include="..\..\multifit\linear_common.c">
       <Filter>multifit</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\multifit\multiridge.c">
+    <ClCompile Include="..\..\multifit\multiwlinear.c">
       <Filter>multifit</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\multifit\multiwlinear.c">
+    <ClCompile Include="..\..\multifit\multireg.c">
       <Filter>multifit</Filter>
     </ClCompile>
   </ItemGroup>

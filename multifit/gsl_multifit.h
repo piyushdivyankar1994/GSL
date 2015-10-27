@@ -41,20 +41,25 @@ __BEGIN_DECLS
 
 typedef struct 
 {
-  size_t n;            /* number of observations */
-  size_t p;            /* number of parameters */
-  gsl_matrix * A;
+  size_t nmax;         /* maximum number of observations */
+  size_t pmax;         /* maximum number of parameters */
+  size_t n;            /* number of observations in current SVD decomposition */
+  size_t p;            /* number of parameters in current SVD decomposition */
+  gsl_matrix * A;      /* least squares matrix for SVD, n-by-p */
   gsl_matrix * Q;
   gsl_matrix * QSI;
   gsl_vector * S;
   gsl_vector * t;
   gsl_vector * xt;
   gsl_vector * D;
+
+  gsl_matrix * LTQR;   /* QR decomposition of L^T, p-by-p */
+  gsl_vector * LTtau;  /* Householder scalars for QR of L^T, size p */
 } 
 gsl_multifit_linear_workspace;
 
 gsl_multifit_linear_workspace *
-gsl_multifit_linear_alloc (size_t n, size_t p);
+gsl_multifit_linear_alloc (const size_t n, const size_t p);
 
 void
 gsl_multifit_linear_free (gsl_multifit_linear_workspace * w);
@@ -76,51 +81,110 @@ gsl_multifit_linear_bsvd (const gsl_matrix * X,
                           gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_solve (const double lambda,
-                                 const gsl_vector * y,
-                                 gsl_vector * c,
-                                 gsl_matrix * cov,
-                                 double *rnorm,
-                                 double *snorm,
-                                 gsl_multifit_linear_workspace * work);
+gsl_multifit_linear_solve (const double lambda,
+                           const gsl_matrix * X,
+                           const gsl_vector * y,
+                           gsl_vector * c,
+                           double *rnorm,
+                           double *snorm,
+                           gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_svd (const gsl_matrix * X,
-                               const gsl_vector * L,
+gsl_multifit_linear_applyW(const gsl_matrix * X,
+                           const gsl_vector * w,
+                           const gsl_vector * y,
+                           gsl_matrix * WX,
+                           gsl_vector * Wy,
+                           gsl_multifit_linear_workspace * work);
+
+int
+gsl_multifit_linear_stdform1 (const gsl_vector * L,
+                              const gsl_matrix * X,
+                              const gsl_vector * y,
+                              gsl_matrix * Xs,
+                              gsl_vector * ys,
+                              gsl_multifit_linear_workspace * work);
+
+int
+gsl_multifit_linear_wstdform1 (const gsl_vector * L,
+                               const gsl_matrix * X,
+                               const gsl_vector * w,
+                               const gsl_vector * y,
+                               gsl_matrix * Xs,
+                               gsl_vector * ys,
                                gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_svd2 (const gsl_matrix * X,
-                                gsl_matrix * L,
-                                gsl_vector * tau,
-                                gsl_multifit_linear_workspace * work);
+gsl_multifit_linear_stdform2 (const gsl_matrix * L,
+                              const gsl_matrix * X,
+                              const gsl_vector * y,
+                              gsl_matrix * Xs,
+                              gsl_vector * ys,
+                              gsl_matrix * M,
+                              gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_transform (const gsl_vector * L,
-                                     gsl_vector * c,
-                                     gsl_multifit_linear_workspace * work);
+gsl_multifit_linear_wstdform2 (const gsl_matrix * L,
+                               const gsl_matrix * X,
+                               const gsl_vector * w,
+                               const gsl_vector * y,
+                               gsl_matrix * Xs,
+                               gsl_vector * ys,
+                               gsl_matrix * M,
+                               gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_transform2 (const gsl_matrix * L,
-                                      const gsl_vector * tau,
-                                      gsl_vector * c,
-                                      gsl_multifit_linear_workspace * work);
+gsl_multifit_linear_genform1 (const gsl_vector * L,
+                              const gsl_vector * cs,
+                              gsl_vector * c,
+                              gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_lcurve (const gsl_vector * y,
-                                  gsl_vector * reg_param,
-                                  gsl_vector * rho, gsl_vector * eta,
-                                  gsl_multifit_linear_workspace * work);
+gsl_multifit_linear_genform2 (const gsl_matrix * L,
+                              const gsl_matrix * X,
+                              const gsl_vector * y,
+                              const gsl_vector * cs,
+                              const gsl_matrix * M,
+                              gsl_vector * c,
+                              gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_lcorner(const gsl_vector *rho,
-                                  const gsl_vector *eta,
-                                  size_t *idx);
+gsl_multifit_linear_wgenform2 (const gsl_matrix * L,
+                               const gsl_matrix * X,
+                               const gsl_vector * w,
+                               const gsl_vector * y,
+                               const gsl_vector * cs,
+                               const gsl_matrix * M,
+                               gsl_vector * c,
+                               gsl_multifit_linear_workspace * work);
 
 int
-gsl_multifit_linear_ridge_lcorner2(const gsl_vector *reg_param,
-                                   const gsl_vector *eta,
-                                   size_t *idx);
+gsl_multifit_linear_lreg (const double smin, const double smax,
+                          gsl_vector * reg_param);
+
+int
+gsl_multifit_linear_lcurve (const gsl_vector * y,
+                            gsl_vector * reg_param,
+                            gsl_vector * rho, gsl_vector * eta,
+                            gsl_multifit_linear_workspace * work);
+
+int
+gsl_multifit_linear_lcorner(const gsl_vector *rho,
+                            const gsl_vector *eta,
+                            size_t *idx);
+
+int
+gsl_multifit_linear_lcorner2(const gsl_vector *reg_param,
+                             const gsl_vector *eta,
+                             size_t *idx);
+
+int
+gsl_multifit_linear_Lk(const size_t p, const size_t k, gsl_matrix *L);
+
+int
+gsl_multifit_linear_Lsobolev(const size_t p, const size_t kmax,
+                             const gsl_vector *alpha, gsl_matrix *L,
+                             gsl_multifit_linear_workspace *work);
 
 int
 gsl_multifit_wlinear (const gsl_matrix * X,
