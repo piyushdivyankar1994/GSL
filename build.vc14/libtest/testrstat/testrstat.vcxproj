@@ -100,6 +100,7 @@
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
@@ -125,6 +126,7 @@
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -148,9 +150,7 @@
       <TargetMachine>MachineX86</TargetMachine>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
-      <Command>"$(TargetPath)" &gt;"$(TargetDir)"/"$(TargetName)".out</Command>
-    </PostBuildEvent>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -178,6 +178,7 @@
       <TargetMachine>MachineX64</TargetMachine>
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\rstat\test.c" />
