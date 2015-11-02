@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testblock", "dlltest\testblock\testblock.vcxproj", "{1FF48F83-4A72-4182-9369-DE2AEA0546AB}"
 EndProject
@@ -97,6 +97,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testspmatrix", "dlltest\testspmatrix\testspmatrix.vcxproj", "{C8A662F0-4B40-4BAA-A788-6303B106D108}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testrstat", "dlltest\testrstat\testrstat.vcxproj", "{279207C4-0825-4A63-BF06-91A83DCE91B1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testmultilarge", "dlltest\testmultilarge\testmultilarge.vcxproj", "{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -490,6 +492,14 @@ Global
 		{279207C4-0825-4A63-BF06-91A83DCE91B1}.Release|Win32.Build.0 = Release|Win32
 		{279207C4-0825-4A63-BF06-91A83DCE91B1}.Release|x64.ActiveCfg = Release|x64
 		{279207C4-0825-4A63-BF06-91A83DCE91B1}.Release|x64.Build.0 = Release|x64
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Debug|Win32.Build.0 = Debug|Win32
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Debug|x64.ActiveCfg = Debug|x64
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Debug|x64.Build.0 = Debug|x64
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Release|Win32.ActiveCfg = Release|Win32
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Release|Win32.Build.0 = Release|Win32
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Release|x64.ActiveCfg = Release|x64
+		{7F83D352-231E-4BFA-BD7C-F6F2CF2F468D}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -151,6 +151,9 @@
     <Filter Include="rstat">
       <UniqueIdentifier>{e93a38ae-2d48-4729-9f80-73f1ccacbe96}</UniqueIdentifier>
     </Filter>
+    <Filter Include="multilarge">
+      <UniqueIdentifier>{b1e60702-51ec-48a9-b13b-1b08eada406e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\blas\blas.c">
@@ -1712,6 +1715,15 @@
     </ClCompile>
     <ClCompile Include="..\..\multifit\multireg.c">
       <Filter>multifit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\multilarge\multilarge.c">
+      <Filter>multilarge</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\multilarge\normal.c">
+      <Filter>multilarge</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\multilarge\tsqr.c">
+      <Filter>multilarge</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

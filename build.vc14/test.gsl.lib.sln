@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testbspline", "libtest\testbspline\testbspline.vcxproj", "{1AE0AA4B-417F-4AB7-9519-13C261A3B38A}"
 EndProject
@@ -97,6 +97,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testspmatrix", "libtest\testspmatrix\testspmatrix.vcxproj", "{C1FC89E5-E2D0-4E56-BA6B-7B554671F93C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testrstat", "libtest\testrstat\testrstat.vcxproj", "{989B7F58-2F94-4507-9473-061FCA7F2AEC}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testmultilarge", "libtest\testmultilarge\testmultilarge.vcxproj", "{06265B04-F4B3-476A-8D0C-9A48ED20EB79}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -490,6 +492,14 @@ Global
 		{989B7F58-2F94-4507-9473-061FCA7F2AEC}.Release|Win32.Build.0 = Release|Win32
 		{989B7F58-2F94-4507-9473-061FCA7F2AEC}.Release|x64.ActiveCfg = Release|x64
 		{989B7F58-2F94-4507-9473-061FCA7F2AEC}.Release|x64.Build.0 = Release|x64
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Debug|Win32.ActiveCfg = Debug|Win32
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Debug|Win32.Build.0 = Debug|Win32
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Debug|x64.ActiveCfg = Debug|x64
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Debug|x64.Build.0 = Debug|x64
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Release|Win32.ActiveCfg = Release|Win32
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Release|Win32.Build.0 = Release|Win32
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Release|x64.ActiveCfg = Release|x64
+		{06265B04-F4B3-476A-8D0C-9A48ED20EB79}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
