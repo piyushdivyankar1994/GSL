@@ -3374,6 +3374,7 @@
     <ClInclude Include="..\..\monte\gsl_monte_miser.h" />
     <ClInclude Include="..\..\monte\gsl_monte_plain.h" />
     <ClInclude Include="..\..\monte\gsl_monte_vegas.h" />
+    <ClInclude Include="..\..\multilarge\gsl_multilarge.h" />
     <ClInclude Include="..\..\qrng\gsl_qrng.h" />
     <ClInclude Include="..\..\specfunc\bessel.h" />
     <ClInclude Include="..\..\specfunc\bessel_amp_phase.h" />

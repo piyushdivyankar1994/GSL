@@ -3301,6 +3301,7 @@
     <ClInclude Include="..\..\gsl\gsl_monte_vegas.h" />
     <ClInclude Include="..\..\gsl\gsl_multifit.h" />
     <ClInclude Include="..\..\gsl\gsl_multifit_nlin.h" />
+    <ClInclude Include="..\..\gsl\gsl_multilarge.h" />
     <ClInclude Include="..\..\gsl\gsl_multimin.h" />
     <ClInclude Include="..\..\gsl\gsl_multiroots.h" />
     <ClInclude Include="..\..\gsl\gsl_multiset.h" />

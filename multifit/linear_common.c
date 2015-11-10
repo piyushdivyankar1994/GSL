@@ -35,6 +35,14 @@
  * Notes:
  * 1) The dimensions of X must match work->n and work->p which are set
  *    by multifit_linear_svd()
+ * 2) On input:
+ *    work->A contains U
+ *    work->Q contains Q
+ *    work->S contains singular values
+ * 3) If this function is called from gsl_multifit_wlinear(), then
+ *    the input y points to work->t, which contains sqrt(W) y. Since
+ *    work->t is also used as scratch workspace by this function, we
+ *    do the necessary computations with y first to avoid problems.
  */
 
 static int
@@ -81,10 +89,13 @@ multifit_linear_solve (const gsl_matrix * X,
 
       size_t j, p_eff;
 
+      /* these inputs are previously computed by multifit_linear_svd() */
       gsl_matrix_view A = gsl_matrix_submatrix(work->A, 0, 0, n, p);
       gsl_matrix_view Q = gsl_matrix_submatrix(work->Q, 0, 0, p, p);
-      gsl_matrix_view QSI = gsl_matrix_submatrix(work->QSI, 0, 0, p, p);
       gsl_vector_view S = gsl_vector_subvector(work->S, 0, p);
+
+      /* workspace */
+      gsl_matrix_view QSI = gsl_matrix_submatrix(work->QSI, 0, 0, p, p);
       gsl_vector_view xt = gsl_vector_subvector(work->xt, 0, p);
       gsl_vector_view D = gsl_vector_subvector(work->D, 0, p);
       gsl_vector_view t = gsl_vector_subvector(work->t, 0, n);
@@ -178,7 +189,7 @@ multifit_linear_solve (const gsl_matrix * X,
           /* Unscale the balancing factors */
           gsl_vector_div (c, &D.vector);
 
-          *snorm = 0.0;
+          *snorm = gsl_blas_dnrm2(c);
           *rnorm = rho_ls;
         }
 

@@ -38,12 +38,13 @@ static void test_random_vector_noise(const gsl_rng *r, gsl_vector *y);
 static void test_compare_vectors(const double tol, const gsl_vector * a,
                                  const gsl_vector * b, const char * desc);
 static void test_multifit_solve(const double lambda, const gsl_matrix * X,
-                                const gsl_vector * y, gsl_vector * c);
+                                const gsl_vector * y, const gsl_vector * wts,
+                                const gsl_vector * diagL, const gsl_matrix * L,
+                                double *rnorm, double *snorm, gsl_vector * c);
 static void test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
-                                  const gsl_matrix * X, const gsl_vector * y, gsl_vector * c);
-
-#include "test_normal.c"
-#include "test_tsqr.c"
+                                  const gsl_matrix * X, const gsl_vector * y, gsl_vector * wts,
+                                  const gsl_vector * diagL, const gsl_matrix * L,
+                                  double *rnorm, double *snorm, gsl_vector * c);
 
 /* generate random square orthogonal matrix via QR decomposition */
 static void
@@ -163,24 +164,74 @@ test_compare_vectors(const double tol, const gsl_vector * a,
 /* solve least squares system with multifit SVD */
 static void
 test_multifit_solve(const double lambda, const gsl_matrix * X,
-                    const gsl_vector * y, gsl_vector * c)
+                    const gsl_vector * y, const gsl_vector * wts,
+                    const gsl_vector * diagL, const gsl_matrix * L,
+                    double *rnorm, double *snorm, gsl_vector * c)
 {
   const size_t n = X->size1;
   const size_t p = X->size2;
   gsl_multifit_linear_workspace *w =
     gsl_multifit_linear_alloc(n, p);
-  double rnorm, snorm;
+  gsl_matrix *Xs = gsl_matrix_alloc(n, p);
+  gsl_vector *ys = gsl_vector_alloc(n);
+  gsl_vector *cs = gsl_vector_alloc(p);
+  gsl_matrix *LQR = NULL;
+  gsl_vector *Ltau = NULL;
+  gsl_matrix *M = NULL;
 
-  gsl_multifit_linear_svd(X, w);
-  gsl_multifit_linear_solve(lambda, X, y, c, &rnorm, &snorm, w);
+  /* convert to standard form */
+  if (diagL)
+    {
+      gsl_multifit_linear_wstdform1(diagL, X, wts, y, Xs, ys, w);
+    }
+  else if (L)
+    {
+      const size_t m = L->size1;
+
+      LQR = gsl_matrix_alloc(m, p);
+      Ltau = gsl_vector_alloc(GSL_MIN(m, p));
+      M = (m >= p) ? gsl_matrix_alloc(m, p) : gsl_matrix_alloc(n, p);
+
+      gsl_matrix_memcpy(LQR, L);
+      gsl_multifit_linear_L_decomp(LQR, Ltau);
+      gsl_multifit_linear_wstdform2(LQR, Ltau, X, wts, y, Xs, ys, M, w);
+    }
+  else
+    {
+      gsl_matrix_memcpy(Xs, X);
+      gsl_vector_memcpy(ys, y);
+    }
+
+  gsl_multifit_linear_svd(Xs, w);
+  gsl_multifit_linear_solve(lambda, Xs, ys, cs, rnorm, snorm, w);
+
+  /* convert to general form */
+  if (diagL)
+    gsl_multifit_linear_genform1(diagL, cs, c, w);
+  else if (L)
+    gsl_multifit_linear_wgenform2(LQR, Ltau, X, wts, y, cs, M, c, w);
+  else
+    gsl_vector_memcpy(c, cs);
 
   gsl_multifit_linear_free(w);
+  gsl_matrix_free(Xs);
+  gsl_vector_free(ys);
+  gsl_vector_free(cs);
+
+  if (LQR)
+    gsl_matrix_free(LQR);
+  if (Ltau)
+    gsl_vector_free(Ltau);
+  if (M)
+    gsl_matrix_free(M);
 }
 
 /* solve least squares system with multilarge */
 static void
 test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
-                      const gsl_matrix * X, const gsl_vector * y, gsl_vector * c)
+                      const gsl_matrix * X, const gsl_vector * y, gsl_vector * wts,
+                      const gsl_vector * diagL, const gsl_matrix * L,
+                      double *rnorm, double *snorm, gsl_vector * c)
 {
   const size_t n = X->size1;
   const size_t p = X->size2;
@@ -188,8 +239,23 @@ test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
   const size_t nrows = n / nblock; /* number of rows per block */
   gsl_multilarge_linear_workspace *w =
     gsl_multilarge_linear_alloc(T, nrows, p);
+  gsl_matrix *Xs = gsl_matrix_alloc(nrows, p);
+  gsl_vector *ys = gsl_vector_alloc(nrows);
+  gsl_vector *cs = gsl_vector_alloc(p);
+  gsl_matrix *LQR = NULL;
+  gsl_vector *Ltau = NULL;
   size_t rowidx = 0;
-  double rnorm, snorm;
+
+  if (L)
+    {
+      const size_t m = L->size1;
+
+      LQR = gsl_matrix_alloc(m, p);
+      Ltau = gsl_vector_alloc(p);
+
+      gsl_matrix_memcpy(LQR, L);
+      gsl_multilarge_linear_L_decomp(LQR, Ltau);
+    }
 
   while (rowidx < n)
     {
@@ -197,15 +263,202 @@ test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
       size_t nr = GSL_MIN(nrows, nleft);
       gsl_matrix_const_view Xv = gsl_matrix_const_submatrix(X, rowidx, 0, nr, p);
       gsl_vector_const_view yv = gsl_vector_const_subvector(y, rowidx, nr);
+      gsl_vector_view wv;
+      gsl_matrix_view Xsv = gsl_matrix_submatrix(Xs, 0, 0, nr, p);
+      gsl_vector_view ysv = gsl_vector_subvector(ys, 0, nr);
 
-      gsl_multilarge_linear_accumulate(&Xv.matrix, &yv.vector, w);
+      if (wts)
+        wv = gsl_vector_subvector(wts, rowidx, nr);
+
+      /* convert to standard form */
+      if (diagL)
+        {
+          gsl_multilarge_linear_wstdform1(diagL, &Xv.matrix, wts ? &wv.vector : NULL,
+                                          &yv.vector, &Xsv.matrix, &ysv.vector, w);
+        }
+      else if (L)
+        {
+          gsl_multilarge_linear_wstdform2(LQR, Ltau, &Xv.matrix, wts ? &wv.vector : NULL,
+                                          &yv.vector, &Xsv.matrix, &ysv.vector, w);
+        }
+      else
+        {
+          gsl_matrix_memcpy(&Xsv.matrix, &Xv.matrix);
+          gsl_vector_memcpy(&ysv.vector, &yv.vector);
+        }
+
+      gsl_multilarge_linear_accumulate(&Xsv.matrix, &ysv.vector, w);
 
       rowidx += nr;
     }
 
-  gsl_multilarge_linear_solve(lambda, c, &rnorm, &snorm, w);
+  gsl_multilarge_linear_solve(lambda, cs, rnorm, snorm, w);
+
+  if (diagL)
+    gsl_multilarge_linear_genform1(diagL, cs, c, w);
+  else if (L)
+    gsl_multilarge_linear_genform2(LQR, Ltau, cs, c, w);
+  else
+    gsl_vector_memcpy(c, cs);
 
   gsl_multilarge_linear_free(w);
+  gsl_matrix_free(Xs);
+  gsl_vector_free(ys);
+  gsl_vector_free(cs);
+
+  if (LQR)
+    gsl_matrix_free(LQR);
+  if (Ltau)
+    gsl_vector_free(Ltau);
+}
+
+static void
+test_system(const gsl_multilarge_linear_type * T,
+            const size_t n, const size_t p,
+            const double tol,
+            const gsl_rng * r)
+{
+  const double tol1 = 1.0e3 * tol;
+  gsl_matrix *X = gsl_matrix_alloc(n, p);
+  gsl_vector *y = gsl_vector_alloc(n);
+  gsl_vector *c = gsl_vector_alloc(p);
+  gsl_vector *w = gsl_vector_alloc(n);
+  gsl_vector *diagL = gsl_vector_alloc(p);
+  gsl_matrix *Lsqr = gsl_matrix_alloc(p, p);
+  gsl_matrix *Ltall = gsl_matrix_alloc(5*p, p);
+  gsl_vector *c0 = gsl_vector_alloc(p);
+  gsl_vector *c1 = gsl_vector_alloc(p);
+  double rnorm0, snorm0;
+  double rnorm1, snorm1;
+  char str[2048];
+  size_t i;
+
+  /* generate LS system */
+  test_random_matrix_ill(X, r);
+  /*test_random_matrix(X, r, -1.0, 1.0);*/
+  test_random_vector(c, r, -1.0, 1.0);
+
+  /* compute y = X c + noise */
+  gsl_blas_dgemv(CblasNoTrans, 1.0, X, c, 0.0, y);
+  test_random_vector_noise(r, y);
+
+  /* random weights */
+  test_random_vector(w, r, 0.0, 1.0);
+
+  /* random diag(L) */
+  test_random_vector(diagL, r, 1.0, 5.0);
+
+  /* random square L */
+  test_random_matrix(Lsqr, r, -5.0, 5.0);
+
+  /* random tall L */
+  test_random_matrix(Ltall, r, -10.0, 10.0);
+
+  for (i = 0; i < 2; ++i)
+    {
+      double lambda = pow(10.0, -(double) i);
+
+      /* unweighted with L = I */
+      {
+        test_multifit_solve(lambda, X, y, NULL, NULL, NULL, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, NULL, NULL, NULL, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s unweighted stdform n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+
+      /* weighted, L = diag(L) */
+      {
+        test_multifit_solve(lambda, X, y, w, diagL, NULL, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, w, diagL, NULL, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s weighted diag(L) n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+
+      /* unweighted, L = diag(L) */
+      {
+        test_multifit_solve(lambda, X, y, NULL, diagL, NULL, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, NULL, diagL, NULL, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s unweighted diag(L) n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+
+      /* weighted, L = square */
+      {
+        test_multifit_solve(lambda, X, y, w, NULL, Lsqr, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, w, NULL, Lsqr, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s weighted Lsqr n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+
+      /* unweighted, L = square */
+      {
+        test_multifit_solve(lambda, X, y, NULL, NULL, Lsqr, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, NULL, NULL, Lsqr, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s unweighted Lsqr n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+
+      /* weighted, L = tall */
+      {
+        test_multifit_solve(lambda, X, y, w, NULL, Ltall, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, w, NULL, Ltall, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s weighted Ltall n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+
+      /* unweighted, L = tall */
+      {
+        test_multifit_solve(lambda, X, y, NULL, NULL, Ltall, &rnorm0, &snorm0, c0);
+        test_multilarge_solve(T, lambda, X, y, NULL, NULL, Ltall, &rnorm1, &snorm1, c1);
+
+        sprintf(str, "%s unweighted Ltall n=%zu p=%zu lambda=%g",
+                T->name, n, p, lambda);
+        test_compare_vectors(tol, c0, c1, str);
+
+        gsl_test_rel(rnorm1, rnorm0, tol1, "rnorm %s", str);
+        gsl_test_rel(snorm1, snorm0, tol, "snorm %s", str);
+      }
+    }
+
+  gsl_matrix_free(X);
+  gsl_vector_free(y);
+  gsl_vector_free(c);
+  gsl_vector_free(w);
+  gsl_vector_free(diagL);
+  gsl_matrix_free(Lsqr);
+  gsl_matrix_free(Ltall);
+  gsl_vector_free(c0);
+  gsl_vector_free(c1);
 }
 
 int
@@ -215,8 +468,22 @@ main (void)
 
   gsl_ieee_env_setup();
 
-  test_normal(r);
-  test_tsqr(r);
+  {
+    const double tol1 = 1.0e-7;
+    const double tol2 = 1.0e-10;
+    const size_t n_vals[] = { 40, 356 };
+    const size_t p_vals[] = { 40, 213 };
+    size_t i;
+
+    for (i = 0; i < 2; ++i)
+      {
+        size_t n = n_vals[i];
+        size_t p = p_vals[i];
+
+        test_system(gsl_multilarge_linear_normal, n, p, tol1, r);
+        test_system(gsl_multilarge_linear_tsqr, n, p, tol2, r);
+      }
+  }
 
   gsl_rng_free(r);
 

@@ -2435,5 +2435,8 @@
     <ClInclude Include="..\..\gsl\gsl_rstat.h">
       <Filter>gsl</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\gsl\gsl_multilarge.h">
+      <Filter>gsl</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
