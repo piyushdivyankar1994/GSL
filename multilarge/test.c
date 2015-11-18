@@ -238,7 +238,7 @@ test_multilarge_solve(const gsl_multilarge_linear_type * T, const double lambda,
   const size_t nblock = 5;
   const size_t nrows = n / nblock; /* number of rows per block */
   gsl_multilarge_linear_workspace *w =
-    gsl_multilarge_linear_alloc(T, nrows, p);
+    gsl_multilarge_linear_alloc(T, p);
   gsl_matrix *Xs = gsl_matrix_alloc(nrows, p);
   gsl_vector *ys = gsl_vector_alloc(nrows);
   gsl_vector *cs = gsl_vector_alloc(p);
@@ -471,8 +471,8 @@ main (void)
   {
     const double tol1 = 1.0e-7;
     const double tol2 = 1.0e-10;
-    const size_t n_vals[] = { 40, 356 };
-    const size_t p_vals[] = { 40, 213 };
+    const size_t n_vals[] = { 40, 356, 501 };
+    const size_t p_vals[] = { 40, 213, 345 };
     size_t i;
 
     for (i = 0; i < 2; ++i)
