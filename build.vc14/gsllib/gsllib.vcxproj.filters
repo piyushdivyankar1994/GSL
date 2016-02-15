@@ -1722,6 +1722,9 @@
     <ClCompile Include="..\..\multilarge\tsqr.c">
       <Filter>multilarge</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\spmatrix\spio.c">
+      <Filter>spmatrix</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\histogram\gsl_histogram.h">

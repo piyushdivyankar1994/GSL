@@ -435,6 +435,7 @@
     <ClCompile Include="..\..\spmatrix\spcompress.c" />
     <ClCompile Include="..\..\spmatrix\spcopy.c" />
     <ClCompile Include="..\..\spmatrix\spgetset.c" />
+    <ClCompile Include="..\..\spmatrix\spio.c" />
     <ClCompile Include="..\..\spmatrix\spmatrix.c" />
     <ClCompile Include="..\..\spmatrix\spoper.c" />
     <ClCompile Include="..\..\spmatrix\spprop.c" />
